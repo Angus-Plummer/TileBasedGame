@@ -61,10 +61,10 @@ void ATileBasedGamePawn::OnResetVR()
 
 void ATileBasedGamePawn::TriggerClick()
 {
-	if (CurrentTileFocus)
-	{
-		CurrentTileFocus->HandleClicked();
-	}
+// 	if (CurrentTileFocus)
+// 	{
+// 		CurrentTileFocus->HandleClicked();
+// 	}
 }
 
 void ATileBasedGamePawn::TraceForBlock(const FVector& Start, const FVector& End, bool bDrawDebugHelpers)
@@ -76,25 +76,25 @@ void ATileBasedGamePawn::TraceForBlock(const FVector& Start, const FVector& End,
 		DrawDebugLine(GetWorld(), Start, HitResult.Location, FColor::Red);
 		DrawDebugSolidBox(GetWorld(), HitResult.Location, FVector(20.0f), FColor::Red);
 	}
-	if (HitResult.Actor.IsValid())
-	{
-		ATile* HitTile = Cast<ATile>(HitResult.Actor.Get());
-		if (CurrentTileFocus != HitTile)
-		{
-			if (CurrentTileFocus)
-			{
-				CurrentTileFocus->Highlight(false);
-			}
-			if (HitTile)
-			{
-				HitTile->Highlight(true);
-			}
-			CurrentTileFocus = HitTile;
-		}
-	}
-	else if (CurrentTileFocus)
-	{
-		CurrentTileFocus->Highlight(false);
-		CurrentTileFocus = nullptr;
-	}
+// 	if (HitResult.Actor.IsValid())
+// 	{
+// 		ATile* HitTile = Cast<ATile>(HitResult.Actor.Get());
+// 		if (CurrentTileFocus != HitTile)
+// 		{
+// 			if (CurrentTileFocus)
+// 			{
+// 				CurrentTileFocus->Highlight(false);
+// 			}
+// 			if (HitTile)
+// 			{
+// 				HitTile->Highlight(true);
+// 			}
+// 			CurrentTileFocus = HitTile;
+// 		}
+// 	}
+// 	else if (CurrentTileFocus)
+// 	{
+// 		CurrentTileFocus->Highlight(false);
+// 		CurrentTileFocus = nullptr;
+// 	}
 }

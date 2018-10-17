@@ -4,7 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "Tile.h"
+#include "Components/InstancedStaticMeshComponent.h"
+#include "TileData.h"
 #include "TileMap.generated.h"
 
 // Class used to manage tiles
@@ -26,13 +27,19 @@ public:
 	int32 Width;
 	UPROPERTY(Category=Grid, EditAnywhere, BlueprintReadOnly)
 	int32 Height;
-	
-	// map container relating the different tile types to their blueprint class
+
+	// Need an instanced static mesh component for each tile type so use a map for quick lookup by tile type
 	UPROPERTY(EditAnywhere)
-	TMap<ETileType, TSubclassOf<ATile>> TileTypes;
+	//TMap<ETileType, UInstancedStaticMeshComponent*> TileMesh;
+	UInstancedStaticMeshComponent* TileMesh;
+
+	UPROPERTY(EditAnywhere)
+	UDataTable* TileProperties;
+	//FDataTableRowHandle TileProperties;
+
 	// map container relating the tile coordinates to the actual tiles. Use map instead of array so better handling of strange map shapes
-	UPROPERTY()
-	TMap<FIntVector, ATile*> Tiles;
+	UPROPERTY(EditAnywhere)
+	TMap<FIntVector, ETileType> Tiles;
 
 	// Spacing of tiles
 	UPROPERTY(Category=Grid, EditAnywhere, BlueprintReadOnly)
@@ -44,7 +51,8 @@ protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
-	// this is used to initiate all of the tiles and attach them to the map
+	// this runs when the map is constructd and any time any property is changed 
+	// it is used to initiate all of the tiles and attach them to the map
 	virtual void OnConstruction(const FTransform& Transform) override;
 
 	// this function runs after the properties of the object are changed in the editor
@@ -57,13 +65,13 @@ protected:
 
 	// End AActor interface
 
+private:
+	bool bConstructed;
+
 public:
 
 	// adds a tile to the map at the given map coordinates. If there is already a tile at those coordinates it will delete and replace that tile
 	void AddTile(const ETileType& NewTileType, const FIntVector& MapCoordinates);
-
-	// removes the tile at the given map coordinates
-	void RemoveTile(const FIntVector& MapCoordinates);
 
 	// creates the tiles according to the current height and width
 	void CreateTiles();
@@ -72,7 +80,10 @@ public:
 	void ClearMap();
 
 	// returns a raw pointer to the tile at a given map coordinate
-	ATile* GetTile(const FIntVector& MapCoordinates) const;
+	ETileType GetTileType(const FIntVector& MapCoordinates) const;
+
+	// gets the data struct associated with a given tile type
+	const FTileData* GetTypeData(ETileType TileType) const;
 
 	// returns the map coordinate for a given world coordinate (x and y)
 	FIntVector WorldToMapCoordinates(const FVector& WorldCoordinates) const;

@@ -6,24 +6,36 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/World.h"
 
-ATileMap::ATileMap()
+ATileMap::ATileMap() 
+	: bConstructed(false)
 {
 	// Create dummy root scene component
 	DummyRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Dummy0"));
 	RootComponent = DummyRoot;
 
+	ConstructorHelpers::FObjectFinderOptional<UDataTable> TilePropertiesP(TEXT("/Game/TileMap/TileProperties.TileProperties"));
+	TileProperties = TilePropertiesP.Get();
+
+	// create tile mesh
+	TileMesh = CreateDefaultSubobject<UInstancedStaticMeshComponent>(TEXT("Tile Mesh"));
+
+	// set up the mesh
+	const FTileData* GrassTileData = GetTypeData(ETileType::GRASS);
+	TileMesh->SetRelativeLocation(FVector(0.f, 0.f, 0.f));
+	TileMesh->SetupAttachment(DummyRoot);
+	//TileMesh->SetStaticMesh(GrassTileData->Mesh);
+	//TileMesh->SetMaterial(0, GrassTileData->Material);
+
 	// Set defaults
 	Width = 3;
 	Height = 3;
-	TileSpacing = 300.f;
+	TileSpacing = 250.f;
 }
 
 
 void ATileMap::BeginPlay()
 {
 	Super::BeginPlay();
-
-	//CreateTiles();
 }
 
 // sets the tiles
@@ -31,9 +43,16 @@ void ATileMap::OnConstruction(const FTransform& Transform)
 {
 	Super::OnConstruction(Transform);
 
-	// if the map is empty then create the map
-	if (Tiles.Num() == 0) // tile actors with own meshes
+	// if the map has not yet been constructed before then do this..
+	// this code will only run one time, when the contructor is first constructed
+	if (!bConstructed)
 	{
+		bConstructed = true;
+		// set up the mesh
+		const FTileData* GrassTileData = GetTypeData(ETileType::GRASS);
+		TileMesh->SetMaterial(0, GrassTileData->Material);
+		TileMesh->SetStaticMesh(GrassTileData->Mesh);
+		// create the tiles
 		CreateTiles();
 	}
 }
@@ -63,55 +82,18 @@ void ATileMap::Destroyed()
 }
 
 
-
 void ATileMap::AddTile(const ETileType& NewTileType, const FIntVector& MapPosition)
 {
-
-	// if the new tile is of a valid type then add it
-	if (TileTypes.Contains(NewTileType))
+	if (true)//TileTypes.Contains(NewTileType)) 
 	{
-		// convert the position from map to world coordinates
-		FVector WorldPosition = MapToWorldCoordinates(MapPosition);
+		// add new tile data to the tiles TMap
+		Tiles.Add(MapPosition, NewTileType);
 
-		// get the blueprint class from the tiletypes map
-		TSubclassOf<ATile> BlueprintTile = TileTypes[NewTileType];
+		FTransform NewTileTransform;
+		NewTileTransform.SetLocation(MapToWorldCoordinates(MapPosition));
 
-		// set up remaining spawn parameters
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.Owner = this;
-
-		// spawn the tile
-		ATile* NewTile = GetWorld()->SpawnActor<ATile>(BlueprintTile, WorldPosition, FRotator(0, 0, 0), SpawnParams);
-
-		// if the new tile has spawned correctly then continue with creation
-		if (NewTile)
-		{
-			// label the tile so it is easier to identify in the editor
-			FString TileLabel = ("Tile[" + FString::FromInt(MapPosition.X) + "][" + FString::FromInt(MapPosition.Y) + "]"); // label is Tile[X][Y]
-			NewTile->SetActorLabel(TileLabel);
-
-			// attach the new tile to this map
-			NewTile->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
-			NewTile->OwningMap = this;
-
-			// if there is already a tile on the map at the new tile position then first remove that tile
-			if (Tiles.Contains(MapPosition))
-			{
-				RemoveTile(MapPosition);
-			}
-			// now add the new tile to the map
-			Tiles.Add(MapPosition, NewTile);
-		}
-	}
-}
-
-void ATileMap::RemoveTile(const FIntVector& MapPosition)
-{
-	// if the Tiles TMap contains a tile at the given position then destroy it and free the corresponding key in the TMap
-	if (Tiles.Contains(MapPosition))
-	{
-		Tiles[MapPosition]->Destroy();
-		Tiles.Remove(MapPosition);
+		// Add the tile to its correspondin instanced mesh
+		TileMesh->AddInstanceWorldSpace(NewTileTransform);
 	}
 }
 
@@ -141,19 +123,25 @@ void ATileMap::CreateTiles()
 
 void ATileMap::ClearMap()
 {
-	// destroy all tiles in the Tiles TMap
-	for (auto Elem : Tiles)
-	{
-		Elem.Value->Destroy();
-	}
-
 	// empty the Tiles TMap of all pairs
 	Tiles.Empty();
+	
+	// clear all instances from the mesh
+	TileMesh->ClearInstances();
 }
 
-ATile* ATileMap::GetTile(const FIntVector& MapPosition) const
+ETileType ATileMap::GetTileType(const FIntVector& MapPosition) const
 {
 	return Tiles[MapPosition];
+}
+
+const FTileData* ATileMap::GetTypeData(ETileType TileType) const
+{
+	// first convert the FTileType enum into an FName of its int8 value
+	FName TileID = (FName)*FString::FromInt((int8)TileType);
+	// find the tile by its ID in the TileProperties data table
+	FTileData* TileData = TileProperties->FindRow<FTileData>(TileID, FString(""));
+	return TileData;
 }
 
 FIntVector ATileMap::WorldToMapCoordinates(const FVector& WorldPosition) const
