@@ -4,38 +4,29 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
-#include "TileData.generated.h"
-
-// enum to list the different tile types
-UENUM()
-enum class ETileType : uint8
-{
-	BLANK		UMETA(DisplayName = "Blank Tile"),
-	GRASS		UMETA(DisplayName = "Grass Tile"),
-	FOREST		UMETA(DisplayName = "Forest Tile"),
-	MOUNTAIN	UMETA(DisplayName = "Mountain Tile"),
-	WATER		UMETA(DisplayName = "Water Tile")
-};
+#include "TileType.generated.h"
 
 // forward declaration of material instance
 class UMaterialInstance;
 
 USTRUCT(BlueprintType)
-struct FTileData : public FTableRowBase
+struct FTileType : public FTableRowBase
 {
 	GENERATED_USTRUCT_BODY()
 
 public:
 
-	FTileData()
-		: TileType(ETileType::BLANK)
+	FTileType()
+		: ID(0)
 		, MoveCost(1)
 		, DefenseModifier(0)
 		, AttackModifier(0)
 	{}
 	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TileData)
-	ETileType TileType; // name of the tile type
+	int32 ID; // the id of the tile in the data table of tiles
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TileData)
+	FName TypeName;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TileData)
 	int32 MoveCost; // cost of movement across the tile (if unit can traverse the tile)
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TileData)

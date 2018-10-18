@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Components/InstancedStaticMeshComponent.h"
-#include "TileData.h"
+#include "TileType.h"
 #include "TileMap.generated.h"
 
 // Class used to manage tiles
@@ -39,11 +39,11 @@ public:
 	UPROPERTY(EditAnywhere)
 	UDataTable* TileProperties;
 
-	// map container relating the tile coordinates to the tile types. Use map instead of array so better handling of strange map shapes
-	UPROPERTY(EditAnywhere)
-	TMap<FIntVector, ETileType> Tiles;
+	// map container relating the tile coordinates to the tile types ids. Use map instead of array so better handling of strange map shapes
+	UPROPERTY()
+	TMap<FIntVector, int32> Tiles;
 	// Need an instanced static mesh component for each tile type
-	UPROPERTY(EditAnywhere)
+	UPROPERTY()
 	TArray<UInstancedStaticMeshComponent*> TileMeshes;
 
 	// ---------- Highlighted Tiles ---------- //
@@ -58,14 +58,14 @@ public:
 	UMaterialInstance* FocusedTileMaterial;
 	
 	// Set holding the locations of the highlighted tiles (for target of action other than for attack)
-	UPROPERTY(EditAnywhere)
+	UPROPERTY()
 	TSet<FIntVector> MoveableTiles;
 	// instanced static mesh for highlighted tiles 
 	UPROPERTY(EditAnywhere)
 	UInstancedStaticMeshComponent* MoveableTilesMesh;
 	
 	// Set holding the locations of the tiles highlighted for an attack action
-	UPROPERTY(EditAnywhere)
+	UPROPERTY()
 	TSet<FIntVector> AttackableTiles;
 	// instanced static mesh for tiles highlighted for attack
 	UPROPERTY(EditAnywhere)
@@ -101,7 +101,7 @@ private:
 public:
 
 	// adds a tile to the map at the given map coordinates. If there is already a tile at those coordinates it will delete and replace that tile
-	void AddTile(const ETileType& NewTileType, const FIntVector& MapCoordinates);
+	void AddTile(const int32& TileTypeID, const FIntVector& MapCoordinates);
 
 	// creates the tiles according to the current height and width
 	void CreateTiles();
@@ -109,11 +109,11 @@ public:
 	// clears the current tiles from the map
 	void ClearMap();
 
-	// returns a raw pointer to the tile at a given map coordinate
-	ETileType GetTileType(const FIntVector& MapCoordinates) const;
+	// returns the integer type id of a tile at a given coordinates
+	int32 GetTileType(const FIntVector& MapCoordinates) const;
 
-	// gets the data struct associated with a given tile type
-	const FTileData* GetTypeData(ETileType TileType) const;
+	// gets the FTileType struct associated with a given tile type
+	const FTileType* GetTypeData(int32 TileTypeID) const;
 
 	// returns the map coordinate for a given world coordinate (x and y)
 	FIntVector WorldToMapCoordinates(const FVector& WorldCoordinates) const;

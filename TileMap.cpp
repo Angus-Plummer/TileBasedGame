@@ -66,12 +66,12 @@ void ATileMap::OnConstruction(const FTransform& Transform)
 		TileMeshes.Empty();
 
 		// create the instanced meshes. 1 for each tile type in the data table
-		TArray<FTileData*> TileTypes;
+		TArray<FTileType*> TileTypes;
 		TileProperties->GetAllRows(FString(""), TileTypes);
 
 		for (auto TileTypeData : TileTypes)
 		{
-			FName NameComponent = FName(*(FString("StaticMesh_") + FString::FromInt((uint8)TileTypeData->TileType)));
+			FName NameComponent = FName(*(FString("StaticMesh_") + FString::FromInt(TileTypeData->ID)));
 			UInstancedStaticMeshComponent* NewMesh = NewObject<UInstancedStaticMeshComponent>(this, NameComponent);
 			if (NewMesh)
 			{
@@ -94,7 +94,7 @@ void ATileMap::BeginPlay()
 {
 	Super::BeginPlay();
 
-	for (int32 i = MapBounds.X / 2; i < MapBounds.X * 2 / 3; i++)
+	for (int32 i = MapBounds.X / 3; i < MapBounds.X * 2 / 3; i++)
 	{
 		for (int32 j = MapBounds.Y / 3; j < MapBounds.Y * 2 / 3; j++)
 		{
@@ -144,22 +144,31 @@ void ATileMap::Destroyed()
 }
 
 
-void ATileMap::AddTile(const ETileType& NewTileType, const FIntVector& MapPosition)
+void ATileMap::AddTile(const int32& TileTypeID, const FIntVector& MapPosition)
 {
 	// add new tile data to the tiles TMap
-	Tiles.Add(MapPosition, NewTileType);
+	Tiles.Add(MapPosition, TileTypeID);
 
 	FTransform NewTileTransform;
 	NewTileTransform.SetLocation(FVector(MapPosition) * TileSpacing);
 
 	// Add the tile to its corresponding instanced mesh
-	TileMeshes[(uint8)NewTileType]->AddInstance(NewTileTransform);
+	TileMeshes[TileTypeID]->AddInstance(NewTileTransform);
 }
 
 void ATileMap::CreateTiles()
 {
 	// first clear the current map
 	ClearMap();
+
+	TArray<FTileType*> TileTypesData;
+	TArray<int32> TileTypes;
+	TileProperties->GetAllRows(FString(""), TileTypesData);
+
+	for (auto TileTypeData : TileTypesData)
+	{
+		TileTypes.Add(TileTypeData->ID);
+	}
 
 	// only spawn if world exists
 	if (GetWorld())
@@ -172,18 +181,13 @@ void ATileMap::CreateTiles()
 				{
 					// get the map position of the tile
 					FIntVector MapPosition(i, j, k);
-
-					ETileType NewTileType;
-					if (i % 2 == j % 2 == k % 2)
+					if (TileTypes.Num() > 0)
 					{
-						NewTileType = ETileType::GRASS;
-					}
-					else {
-						NewTileType = ETileType::WATER;
-					}
+						int32 NewTileType = TileTypes[FMath::RandRange(0, TileTypes.Num() - 1)];
 
-					// add the new tile to the map
-					AddTile(NewTileType, MapPosition);
+						// add the new tile to the map
+						AddTile(NewTileType, MapPosition);
+					}
 				}
 			}
 		}
@@ -206,17 +210,17 @@ void ATileMap::ClearMap()
 	}
 }
 
-ETileType ATileMap::GetTileType(const FIntVector& MapPosition) const
+int32 ATileMap::GetTileType(const FIntVector& MapPosition) const
 {
 	return Tiles[MapPosition];
 }
 
-const FTileData* ATileMap::GetTypeData(ETileType TileType) const
+const FTileType* ATileMap::GetTypeData(int32 TileTypeID) const
 {
-	// first convert the FTileType enum into an FName of its int8 value
-	FName TileID = (FName)*FString::FromInt((int8)TileType);
+	// first convert the FTileType enum into an FName of its int32 value
+	FName TileID = (FName)*FString::FromInt(TileTypeID);
 	// find the tile by its ID in the TileProperties data table
-	FTileData* TileData = TileProperties->FindRow<FTileData>(TileID, FString(""));
+	FTileType* TileData = TileProperties->FindRow<FTileType>(TileID, FString(""));
 	return TileData;
 }
 
@@ -227,6 +231,12 @@ FIntVector ATileMap::WorldToMapCoordinates(const FVector& WorldPosition) const
 	
 	// divide by tile spacing to get to map scale and correct for offset due to tiles coordinates being at their centre
 	FVector MapPosition = LocalPosition / TileSpacing + FVector(0.5, 0.5, 0.5);
+
+	// if map is 2d (bound of map in z is 1) then set the map position in z to be 0 (project down z axis to find tile)
+	if (MapBounds.Z == 1) 
+	{
+		MapPosition.Z = 0;
+	}
 	
 	// convert to int vector and return
 	return FIntVector(MapPosition);

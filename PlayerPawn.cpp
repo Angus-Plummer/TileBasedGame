@@ -21,23 +21,27 @@ void APlayerPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if (APlayerController* PC = Cast<APlayerController>(GetController()))
+	// only do tracing for tiles if there is a map connected
+	if (Map)
 	{
-		if (UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled())
+		if (APlayerController* PC = Cast<APlayerController>(GetController()))
 		{
-			if (UCameraComponent* OurCamera = PC->GetViewTarget()->FindComponentByClass<UCameraComponent>())
+			if (UHeadMountedDisplayFunctionLibrary::IsHeadMountedDisplayEnabled())
 			{
-				FVector Start = OurCamera->GetComponentLocation();
-				FVector End = Start + (OurCamera->GetComponentRotation().Vector() * 8000.0f);
-				TraceForBlock(Start, End, true);
+				if (UCameraComponent* OurCamera = PC->GetViewTarget()->FindComponentByClass<UCameraComponent>())
+				{
+					FVector Start = OurCamera->GetComponentLocation();
+					FVector End = Start + (OurCamera->GetComponentRotation().Vector() * 8000.0f);
+					TraceForBlock(Start, End, true);
+				}
 			}
-		}
-		else
-		{
-			FVector Start, Dir, End;
-			PC->DeprojectMousePositionToWorld(Start, Dir);
-			End = Start + (Dir * 8000.0f);
-			TraceForBlock(Start, End, false);
+			else
+			{
+				FVector Start, Dir, End;
+				PC->DeprojectMousePositionToWorld(Start, Dir);
+				End = Start + (Dir * 8000.0f);
+				TraceForBlock(Start, End, false);
+			}
 		}
 	}
 }
