@@ -4,8 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
-#include "GameFramework/Actor.h"
-#include "Components/InstancedStaticMeshComponent.h"
 #include "TileData.generated.h"
 
 // enum to list the different tile types
@@ -18,6 +16,9 @@ enum class ETileType : uint8
 	MOUNTAIN	UMETA(DisplayName = "Mountain Tile"),
 	WATER		UMETA(DisplayName = "Water Tile")
 };
+
+// forward declaration of material instance
+class UMaterialInstance;
 
 USTRUCT(BlueprintType)
 struct FTileData : public FTableRowBase
@@ -32,7 +33,7 @@ public:
 		, DefenseModifier(0)
 		, AttackModifier(0)
 	{}
-
+	
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TileData)
 	ETileType TileType; // name of the tile type
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TileData)

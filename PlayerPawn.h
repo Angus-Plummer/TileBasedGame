@@ -4,14 +4,19 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
-#include "TileBasedGamePawn.generated.h"
+#include "PlayerPawn.generated.h"
 
 UCLASS(config=Game)
-class ATileBasedGamePawn : public APawn
+class APlayerPawn : public APawn
 {
 	GENERATED_UCLASS_BODY()
 
 public:
+	// ctor
+	APlayerPawn();
+
+	UPROPERTY(EditAnywhere)
+	class ATileMap* Map;
 
 	virtual void Tick(float DeltaSeconds) override;
 

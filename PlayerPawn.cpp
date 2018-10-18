@@ -1,20 +1,19 @@
 // Copyright 1998-2018 Epic Games, Inc. All Rights Reserved.
 
-#include "TileBasedGamePawn.h"
-#include "Tile.h"
+#include "PlayerPawn.h"
+#include "TileMap.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
 
-ATileBasedGamePawn::ATileBasedGamePawn(const FObjectInitializer& ObjectInitializer) 
-	: Super(ObjectInitializer)
+APlayerPawn::APlayerPawn()
 {
 	AutoPossessPlayer = EAutoReceiveInput::Player0;
 }
 
-void ATileBasedGamePawn::Tick(float DeltaSeconds)
+void APlayerPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
@@ -39,7 +38,7 @@ void ATileBasedGamePawn::Tick(float DeltaSeconds)
 	}
 }
 
-void ATileBasedGamePawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
+void APlayerPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
@@ -47,54 +46,49 @@ void ATileBasedGamePawn::SetupPlayerInputComponent(UInputComponent* PlayerInputC
 	PlayerInputComponent->BindAction("TriggerClick", EInputEvent::IE_Pressed, this, &ATileBasedGamePawn::TriggerClick);
 }
 
-void ATileBasedGamePawn::CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutResult)
+void APlayerPawn::CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutResult)
 {
 	Super::CalcCamera(DeltaTime, OutResult);
 
 	OutResult.Rotation = FRotator(-90.0f, -90.0f, 0.0f);
 }
 
-void ATileBasedGamePawn::OnResetVR()
+void APlayerPawn::OnResetVR()
 {
 	UHeadMountedDisplayFunctionLibrary::ResetOrientationAndPosition();
 }
 
-void ATileBasedGamePawn::TriggerClick()
+void APlayerPawn::TriggerClick()
 {
-// 	if (CurrentTileFocus)
-// 	{
-// 		CurrentTileFocus->HandleClicked();
-// 	}
+	if (Map->FocusedTileMesh->IsActive())
+	{
+		//Map->HandleClick();
+	}
 }
 
-void ATileBasedGamePawn::TraceForBlock(const FVector& Start, const FVector& End, bool bDrawDebugHelpers)
+void APlayerPawn::TraceForBlock(const FVector& Start, const FVector& End, bool bDrawDebugHelpers)
 {
 	FHitResult HitResult;
-	GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility);
+	GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_GameTraceChannel1);
 	if (bDrawDebugHelpers)
 	{
 		DrawDebugLine(GetWorld(), Start, HitResult.Location, FColor::Red);
 		DrawDebugSolidBox(GetWorld(), HitResult.Location, FVector(20.0f), FColor::Red);
 	}
-// 	if (HitResult.Actor.IsValid())
-// 	{
-// 		ATile* HitTile = Cast<ATile>(HitResult.Actor.Get());
-// 		if (CurrentTileFocus != HitTile)
-// 		{
-// 			if (CurrentTileFocus)
-// 			{
-// 				CurrentTileFocus->Highlight(false);
-// 			}
-// 			if (HitTile)
-// 			{
-// 				HitTile->Highlight(true);
-// 			}
-// 			CurrentTileFocus = HitTile;
-// 		}
-// 	}
-// 	else if (CurrentTileFocus)
-// 	{
-// 		CurrentTileFocus->Highlight(false);
-// 		CurrentTileFocus = nullptr;
-// 	}
+	if (HitResult.Actor.IsValid())
+	{
+		FIntVector HitTilePosition = Map->WorldToMapCoordinates(HitResult.ImpactPoint);
+		if (Map->Tiles.Contains(HitTilePosition))
+		{
+			Map->SelectFocusTile(HitTilePosition);
+		}
+		else
+		{
+			Map->UnsetFocusTile();
+		}
+	}
+	else
+	{
+		Map->UnsetFocusTile();
+	}
 }
