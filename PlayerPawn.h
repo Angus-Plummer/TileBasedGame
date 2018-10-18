@@ -12,9 +12,6 @@ class APlayerPawn : public APawn
 	GENERATED_UCLASS_BODY()
 
 public:
-	// ctor
-	APlayerPawn();
-
 	UPROPERTY(EditAnywhere)
 	class ATileMap* Map;
 

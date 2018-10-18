@@ -8,7 +8,11 @@
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
 
-APlayerPawn::APlayerPawn()
+// define game channels
+#define ECC_Tile_Base_Meshes	ECC_GameTraceChannel1;
+
+APlayerPawn::APlayerPawn(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 	AutoPossessPlayer = EAutoReceiveInput::Player0;
 }
@@ -42,8 +46,8 @@ void APlayerPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-	PlayerInputComponent->BindAction("OnResetVR", EInputEvent::IE_Pressed, this, &ATileBasedGamePawn::OnResetVR);
-	PlayerInputComponent->BindAction("TriggerClick", EInputEvent::IE_Pressed, this, &ATileBasedGamePawn::TriggerClick);
+	PlayerInputComponent->BindAction("OnResetVR", EInputEvent::IE_Pressed, this, &APlayerPawn::OnResetVR);
+	PlayerInputComponent->BindAction("TriggerClick", EInputEvent::IE_Pressed, this, &APlayerPawn::TriggerClick);
 }
 
 void APlayerPawn::CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutResult)

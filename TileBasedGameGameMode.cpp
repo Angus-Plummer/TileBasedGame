@@ -2,12 +2,12 @@
 
 #include "TileBasedGameGameMode.h"
 #include "TileBasedGamePlayerController.h"
-#include "TileBasedGamePawn.h"
+#include "PlayerPawn.h"
 
 ATileBasedGameGameMode::ATileBasedGameGameMode()
 {
 	// no pawn by default
-	DefaultPawnClass = ATileBasedGamePawn::StaticClass();
+	DefaultPawnClass = APlayerPawn::StaticClass();
 	// use our own player controller class
 	PlayerControllerClass = ATileBasedGamePlayerController::StaticClass();
 }
