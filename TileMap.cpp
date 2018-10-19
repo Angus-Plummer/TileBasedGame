@@ -187,18 +187,14 @@ void ATileMap::CreateTiles()
 			SourceImage->SRGB = false;
 			SourceImage->UpdateResource();
 
-			// get 
+			// get pixel color array from texture
 			const FColor* FormatedImageData = static_cast<const FColor*>(SourceImage->PlatformData->Mips[0].BulkData.LockReadOnly());
-
-			TArray<FString> ImageColors;
 
 			for (int32 X = 0; X < SourceImage->GetSizeX(); X++)
 			{
 				for (int32 Y = 0; Y < SourceImage->GetSizeY(); Y++)
 				{
 					FString PixelColor = FormatedImageData[Y * SourceImage->GetSizeX() + X].ToHex();					
-					ImageColors.AddUnique(PixelColor);
-
 					// if the colour of the pixel matches with a tile type from the data table then add a tile of that type to the map at the matching coordinate
 					if (ColorToTileID.Contains(PixelColor))
 					{
