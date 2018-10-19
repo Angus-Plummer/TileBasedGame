@@ -39,6 +39,10 @@ public:
 	UPROPERTY(EditAnywhere)
 	UDataTable* TileProperties;
 
+	// 2d texture with map drawn on. this is used for creating and loading maps
+	UPROPERTY(EditAnywhere)
+	UTexture2D* SourceImage;
+
 	// map container relating the tile coordinates to the tile types ids. Use map instead of array so better handling of strange map shapes
 	UPROPERTY()
 	TMap<FIntVector, int32> Tiles;

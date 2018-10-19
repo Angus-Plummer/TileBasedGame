@@ -3,6 +3,7 @@
 #include "TileMap.h"
 #include "Components/TextRenderComponent.h"
 #include "UObject/ConstructorHelpers.h"
+#include "Engine/Texture2D.h"
 #include "Engine/World.h"
 
 ATileMap::ATileMap() 
@@ -161,35 +162,52 @@ void ATileMap::CreateTiles()
 	// first clear the current map
 	ClearMap();
 
-	TArray<FTileType*> TileTypesData;
-	TArray<int32> TileTypes;
-	TileProperties->GetAllRows(FString(""), TileTypesData);
-
-	for (auto TileTypeData : TileTypesData)
-	{
-		TileTypes.Add(TileTypeData->ID);
-	}
-
 	// only spawn if world exists
 	if (GetWorld())
 	{
-		for (int32 i = 0; i < MapBounds.X; i++)
-		{
-			for (int32 j = 0; j < MapBounds.Y; j++ )
-			{
-				for (int32 k = 0; k < MapBounds.Z; k++)
-				{
-					// get the map position of the tile
-					FIntVector MapPosition(i, j, k);
-					if (TileTypes.Num() > 0)
-					{
-						int32 NewTileType = TileTypes[FMath::RandRange(0, TileTypes.Num() - 1)];
+		TMap<FString, int32> ColorToTileID; // map relating colors (as FString Hexadecimal RGBA) representing tiles on the map to the tile IDs
+		// get array holding all tile type data in the TileProperties data file
+		TArray<FTileType*> TileTypeData;
+		TileProperties->GetAllRows(FString(""), TileTypeData);
 
-						// add the new tile to the map
-						AddTile(NewTileType, MapPosition);
+		for (auto TileType : TileTypeData)
+		{
+			ColorToTileID.Add(TileType->SourceImageColour.ToHex(), TileType->ID);
+		}
+
+		// if there is a map source image then load from the image, otherwise load no tiles
+		if (SourceImage)
+		{
+			// set the map bounds to be those of the source image
+			MapBounds = FIntVector(SourceImage->GetSizeX(), SourceImage->GetSizeY(), 1);
+
+			// set up the source image settings so that it allows finding rgb pixel colours
+			SourceImage->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
+			SourceImage->MipGenSettings = TextureMipGenSettings::TMGS_NoMipmaps;
+			SourceImage->SRGB = false;
+			SourceImage->UpdateResource();
+
+			// get 
+			const FColor* FormatedImageData = static_cast<const FColor*>(SourceImage->PlatformData->Mips[0].BulkData.LockReadOnly());
+
+			TArray<FString> ImageColors;
+
+			for (int32 X = 0; X < SourceImage->GetSizeX(); X++)
+			{
+				for (int32 Y = 0; Y < SourceImage->GetSizeY(); Y++)
+				{
+					FString PixelColor = FormatedImageData[Y * SourceImage->GetSizeX() + X].ToHex();					
+					ImageColors.AddUnique(PixelColor);
+
+					// if the colour of the pixel matches with a tile type from the data table then add a tile of that type to the map at the matching coordinate
+					if (ColorToTileID.Contains(PixelColor))
+					{
+						AddTile(ColorToTileID[PixelColor], FIntVector(X, Y, 0));
 					}
 				}
 			}
+			// unlock the source image so it can be edited elsewhere
+			SourceImage->PlatformData->Mips[0].BulkData.Unlock();
 		}
 	}
 }

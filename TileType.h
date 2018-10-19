@@ -37,5 +37,7 @@ public:
 	UMaterialInstance* Material; // Pointer to material used on the tile
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TileData)
 	UStaticMesh* Mesh; // Pointer to the mesh used by the tile
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TileData)
+	FColor SourceImageColour; // color of this tile type in map source images (the 2d textures which are used as created map data)
 
 };
