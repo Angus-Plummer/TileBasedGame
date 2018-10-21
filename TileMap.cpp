@@ -104,7 +104,7 @@ void ATileMap::BeginPlay()
 	}
 	for (auto Tile : MoveableTiles)
 	{
-		TArray<FIntVector> AdjacentTiles = GetAdjacentTiles(Tile);
+		TSet<FIntVector> AdjacentTiles = GetAdjacentTiles(Tile);
 		for (auto TargetTile : AdjacentTiles)
 		{
 			if (!MoveableTiles.Contains(TargetTile))
@@ -187,9 +187,9 @@ void ATileMap::CreateTiles()
 			SourceImage->SRGB = false;
 			SourceImage->UpdateResource();
 
-			// get pixel color array from texture
+			// get pixel color array from the texture
 			const FColor* FormatedImageData = static_cast<const FColor*>(SourceImage->PlatformData->Mips[0].BulkData.LockReadOnly());
-
+			// iterate through the array and get each colour
 			for (int32 X = 0; X < SourceImage->GetSizeX(); X++)
 			{
 				for (int32 Y = 0; Y < SourceImage->GetSizeY(); Y++)
@@ -225,8 +225,14 @@ void ATileMap::ClearMap()
 }
 
 int32 ATileMap::GetTileType(const FIntVector& MapPosition) const
-{
-	return Tiles[MapPosition];
+{	
+	const int32* TypeID = Tiles.Find(MapPosition);
+	if (TypeID)
+	{
+		return *TypeID;
+	}
+	else
+		return -1;
 }
 
 const FTileType* ATileMap::GetTypeData(int32 TileTypeID) const
@@ -332,9 +338,9 @@ int32 ATileMap::DistanceBetween(const FIntVector MapPosition1, const FIntVector 
 	return ManhattanDistance;
 }
 
-TArray<FIntVector> ATileMap::GetAdjacentTiles(const FIntVector MapPosition)
+TSet<FIntVector> ATileMap::GetAdjacentTiles(const FIntVector MapPosition)
 {
-	TArray<FIntVector> AdjacentTiles;
+	TSet<FIntVector> AdjacentTiles;
 	// iterate through the tiles at positions around the map position
 	for (int32 i = -1; i <= 1; i++)
 	{

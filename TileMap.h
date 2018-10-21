@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "TileType.h"
+#include "Unit.h"
 #include "TileMap.generated.h"
 
 // Class used to manage tiles
@@ -32,6 +33,11 @@ public:
 	// Spacing of tiles
 	UPROPERTY(Category = Grid, EditAnywhere, BlueprintReadOnly)
 	FVector TileSpacing;
+
+	// ---------- Units ---------- //
+	// TMap for determining if there is a unit at a given coordinate using Find(Coordinate). Can also find position of unit using FindKey(Unit) but this is a linear operation
+	UPROPERTY(EditAnywhere)
+	TMap<FIntVector, AUnit*> Units;
 
 	// ---------- Tile Data ---------- //
 
@@ -113,7 +119,7 @@ public:
 	// clears the current tiles from the map
 	void ClearMap();
 
-	// returns the integer type id of a tile at a given coordinates
+	// returns the integer type id of a tile at a given coordinates. If the coordinate is invalid, this will return -1.
 	int32 GetTileType(const FIntVector& MapCoordinates) const;
 
 	// gets the FTileType struct associated with a given tile type
@@ -145,7 +151,7 @@ public:
 
 	// get all of the valid map positions that are adjacent to the input position (checks will not return a position if it is not in TMap)
 	// currently only gives the 2D adjacencies (in x and y)
-	TArray<FIntVector> GetAdjacentTiles(const FIntVector MapPosition);
+	TSet<FIntVector> GetAdjacentTiles(const FIntVector MapPosition);
 
 
 	/** Returns DummyRoot subobject **/
