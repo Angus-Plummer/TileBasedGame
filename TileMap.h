@@ -9,6 +9,36 @@
 #include "Unit.h"
 #include "TileMap.generated.h"
 
+USTRUCT()
+struct FTile
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+
+	FTile()
+		: MapPosition(0,0,0)
+		, TileTypeID(0)
+	{}
+	UPROPERTY(VisibleAnywhere)
+	FIntVector MapPosition;
+	UPROPERTY(VisibleAnywhere)
+	int32 TileTypeID;
+};
+
+// equality operator for tile structs
+inline bool operator==(const FTile& lhs, const FTile& rhs)
+{
+	// only need to compare the map positions as they are unique
+	return lhs.MapPosition == rhs.MapPosition;
+}
+
+// type has generator for tiles just uses the position as these are unique
+inline int32 GetTypeHash(const FTile& Tile)
+{
+	return GetTypeHash(Tile.MapPosition);
+}
+
 // Class used to manage tiles
 UCLASS()
 class ATileMap : public AActor
@@ -37,7 +67,7 @@ public:
 	// ---------- Units ---------- //
 	// TMap for determining if there is a unit at a given coordinate using Find(Coordinate). Can also find position of unit using FindKey(Unit) but this is a linear operation
 	UPROPERTY(EditAnywhere)
-	TMap<FIntVector, AUnit*> Units;
+	TMap<FIntVector, AUnit*> UnitPositions;
 
 	// ---------- Tile Data ---------- //
 
@@ -49,34 +79,34 @@ public:
 	UPROPERTY(EditAnywhere)
 	UTexture2D* SourceImage;
 
-	// map container relating the tile coordinates to the tile types ids. Use map instead of array so better handling of strange map shapes
+	// map container relating the tile coordinates to the tile structs. Use map instead of array so better handling of strange map shapes
 	UPROPERTY()
-	TMap<FIntVector, int32> Tiles;
+	TMap<FIntVector, FTile> Tiles;
 	// Need an instanced static mesh component for each tile type
 	UPROPERTY()
 	TArray<UInstancedStaticMeshComponent*> TileMeshes;
 
 	// ---------- Highlighted Tiles ---------- //
 
-	// location of the currently focused tile in map coordinates
+	// currently focused tile
 	UPROPERTY(EditAnywhere)
-	FIntVector FocusedTile;
+	FTile FocusedTile;
 	// static mesh for the focused tile
 	UPROPERTY(EditAnywhere)
 	UStaticMeshComponent* FocusedTileMesh;
 	UPROPERTY(EditAnywhere)
 	UMaterialInstance* FocusedTileMaterial;
 	
-	// Set holding the locations of the highlighted tiles (for target of action other than for attack)
+	// Set of highlighted tiles (for target of action other than for attack)
 	UPROPERTY()
-	TSet<FIntVector> MoveableTiles;
+	TSet<FTile> MoveableTiles;
 	// instanced static mesh for highlighted tiles 
 	UPROPERTY(EditAnywhere)
 	UInstancedStaticMeshComponent* MoveableTilesMesh;
 	
-	// Set holding the locations of the tiles highlighted for an attack action
+	// Set of tiles highlighted for an attack action
 	UPROPERTY()
-	TSet<FIntVector> AttackableTiles;
+	TSet<FTile> AttackableTiles;
 	// instanced static mesh for tiles highlighted for attack
 	UPROPERTY(EditAnywhere)
 	UInstancedStaticMeshComponent* AttackableTilesMesh;
@@ -84,7 +114,7 @@ public:
 protected:
 	// ---------- Begin AActor interface ---------- //
 
-	// called after the constructor and when properties have been initialised
+	// called after the constructor and when properties have been initialized
 	// use this to set up the Instanced static mesh components as not everything works in the constructor
 	virtual void PostInitProperties() override;
 
@@ -96,7 +126,7 @@ protected:
 	virtual void BeginPlay() override;
 
 	// this function runs after the properties of the object are changed in the editor
-	// it recreates the tiles whenever the properties of the tilemap are changed in the editor
+	// it recreates the tiles whenever the properties of the tile map are changed in the editor
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 
 	// called when the object is to be destroyed
@@ -111,16 +141,13 @@ private:
 public:
 
 	// adds a tile to the map at the given map coordinates. If there is already a tile at those coordinates it will delete and replace that tile
-	void AddTile(const int32& TileTypeID, const FIntVector& MapCoordinates);
+	void AddTile(int32 TileTypeID, FIntVector MapCoordinates);
 
 	// creates the tiles according to the current height and width
 	void CreateTiles();
 
 	// clears the current tiles from the map
 	void ClearMap();
-
-	// returns the integer type id of a tile at a given coordinates. If the coordinate is invalid, this will return -1.
-	int32 GetTileType(const FIntVector& MapCoordinates) const;
 
 	// gets the FTileType struct associated with a given tile type
 	const FTileType* GetTypeData(int32 TileTypeID) const;
@@ -132,16 +159,16 @@ public:
 	FVector MapToWorldCoordinates(const FIntVector& MapCoordinates) const;
 
 	// Set the tile a the given coordinates to be the focus tile. There can only be one focused tile
-	void SelectFocusTile(const FIntVector MapCoordinates);
+	void SelectFocusTile(FTile TileToFocus);
 
 	// make so no tile is currently focused
 	void UnsetFocusTile();
 
 	// highlight a tile as moveable
-	void AddMoveableTile(FIntVector MapPosition);
+	void AddMoveableTile(FTile Tile);
 
 	// highlight a tile as attackable
-	void AddAttackableTile(FIntVector MapPosition);
+	void AddAttackableTile(FTile Tile);
 
 	// unhighlight all tiles (of either highlighted or attackable)
 	void ClearHighlightedTiles();
@@ -149,10 +176,17 @@ public:
 	// get the manhattan distance between two map positions
 	int32 DistanceBetween(const FIntVector MapPosition1, const FIntVector MapPosition2) const;
 
-	// get all of the valid map positions that are adjacent to the input position (checks will not return a position if it is not in TMap)
-	// currently only gives the 2D adjacencies (in x and y)
-	TSet<FIntVector> GetAdjacentTiles(const FIntVector MapPosition);
+	// get all of the valid map positions that are adjacent to the input position (INCLUDES DIAGONAL TILES)
+	TSet<FTile> GetAdjacentTiles(const FIntVector MapPosition) const;
 
+	// returns a set containing the positions of tiles that are equal to or greater than the minimum distance and less than or equal to the maximum distance away from the source position 
+	TSet<FTile> GetTilesInRange(const FIntVector SourcePosition, int32 MinimumDistance, int32 MaximumDistance) const;
+
+	// returns the map position of a unit
+	FIntVector GetUnitPosition(AUnit* Unit) const;
+
+	// returns a set of all units that are present on the set of tiles given
+	TSet<AUnit*> GetUnitsOnTiles(TSet<FTile> Tiles);
 
 	/** Returns DummyRoot subobject **/
 	FORCEINLINE class USceneComponent* GetDummyRoot() const { return DummyRoot; }

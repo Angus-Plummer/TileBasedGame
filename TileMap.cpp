@@ -99,17 +99,22 @@ void ATileMap::BeginPlay()
 	{
 		for (int32 j = MapBounds.Y / 3; j < MapBounds.Y * 2 / 3; j++)
 		{
-			AddMoveableTile(FIntVector(i, j, 0));
+			FTile* PotentialTile = Tiles.Find(FIntVector(i, j, 0));
+			if (PotentialTile)
+			{
+				AddMoveableTile(*PotentialTile);
+			}
+
 		}
 	}
 	for (auto Tile : MoveableTiles)
 	{
-		TSet<FIntVector> AdjacentTiles = GetAdjacentTiles(Tile);
-		for (auto TargetTile : AdjacentTiles)
+		TSet<FTile> NeighbouringTiles = GetTilesInRange(Tile.MapPosition, 1, 1);
+		for (auto TargetTile : NeighbouringTiles)
 		{
 			if (!MoveableTiles.Contains(TargetTile))
 			{
-				AddAttackableTile(TargetTile);
+				AddAttackableTile(*Tiles.Find(TargetTile.MapPosition));
 			}
 		}
 
@@ -145,16 +150,20 @@ void ATileMap::Destroyed()
 }
 
 
-void ATileMap::AddTile(const int32& TileTypeID, const FIntVector& MapPosition)
+void ATileMap::AddTile(int32 TileTypeID, FIntVector MapCoordinates)
 {
+	FTile NewTile;
+	NewTile.TileTypeID = TileTypeID;
+	NewTile.MapPosition = MapCoordinates;
+
 	// add new tile data to the tiles TMap
-	Tiles.Add(MapPosition, TileTypeID);
+	Tiles.Add(NewTile.MapPosition, NewTile);
 
 	FTransform NewTileTransform;
-	NewTileTransform.SetLocation(FVector(MapPosition) * TileSpacing);
+	NewTileTransform.SetLocation(FVector(NewTile.MapPosition) * TileSpacing);
 
 	// Add the tile to its corresponding instanced mesh
-	TileMeshes[TileTypeID]->AddInstance(NewTileTransform);
+	TileMeshes[NewTile.TileTypeID]->AddInstance(NewTileTransform);
 }
 
 void ATileMap::CreateTiles()
@@ -198,7 +207,7 @@ void ATileMap::CreateTiles()
 					// if the colour of the pixel matches with a tile type from the data table then add a tile of that type to the map at the matching coordinate
 					if (ColorToTileID.Contains(PixelColor))
 					{
-						AddTile(ColorToTileID[PixelColor], FIntVector(X, Y, 0));
+						AddTile( *ColorToTileID.Find(PixelColor), FIntVector(X, Y, 0));
 					}
 				}
 			}
@@ -222,17 +231,6 @@ void ATileMap::ClearMap()
 			TileMesh->ClearInstances();
 		}
 	}
-}
-
-int32 ATileMap::GetTileType(const FIntVector& MapPosition) const
-{	
-	const int32* TypeID = Tiles.Find(MapPosition);
-	if (TypeID)
-	{
-		return *TypeID;
-	}
-	else
-		return -1;
 }
 
 const FTileType* ATileMap::GetTypeData(int32 TileTypeID) const
@@ -273,14 +271,14 @@ FVector ATileMap::MapToWorldCoordinates(const FIntVector& MapPosition) const
 	return WorldPosition;
 }
 
-void ATileMap::SelectFocusTile(const FIntVector MapCoordinates)
+void ATileMap::SelectFocusTile(FTile Tile)
 {
-	FocusedTile = MapCoordinates;
+	FocusedTile = Tile;
 	if (!FocusedTileMesh->IsVisible())
 	{
 		FocusedTileMesh->SetVisibility(true);
 	}
-	FocusedTileMesh->SetRelativeLocation(FVector(MapCoordinates) * TileSpacing);
+	FocusedTileMesh->SetRelativeLocation(FVector(FocusedTile.MapPosition) * TileSpacing);
 }
 
 void ATileMap::UnsetFocusTile()
@@ -288,34 +286,34 @@ void ATileMap::UnsetFocusTile()
 	if (FocusedTileMesh->IsVisible())
 	{
 		FocusedTileMesh->SetVisibility(false);
-		FocusedTile = FIntVector(NULL, NULL, NULL);
+		FocusedTile = FTile();
 	}
 }
 
-void ATileMap::AddMoveableTile(FIntVector MapPosition)
+void ATileMap::AddMoveableTile(FTile Tile)
 {
 	// check if it has been added already
-	if (!MoveableTiles.Contains(MapPosition))
+	if (!MoveableTiles.Contains(Tile))
 	{
 		// add the tile to the movable tiles set 
-		MoveableTiles.Add(MapPosition);
+		MoveableTiles.Add(Tile);
 		// add a new instanced static mesh component to the movable tiles mesh
 		FTransform NewTileTransform;
-		NewTileTransform.SetLocation(FVector(MapPosition) * TileSpacing);
+		NewTileTransform.SetLocation(FVector(Tile.MapPosition) * TileSpacing);
 		MoveableTilesMesh->AddInstance(NewTileTransform);
 	}
 }
 
-void ATileMap::AddAttackableTile(FIntVector MapPosition)
+void ATileMap::AddAttackableTile(FTile Tile)
 {
 	// check if the tile has already been added to attackable tiles
-	if (!AttackableTiles.Contains(MapPosition))
+	if (!AttackableTiles.Contains(Tile))
 	{
 		// add the tile to the movable tiles set (will do nothing if it is already in the set as it is a TSet)
-		AttackableTiles.Add(MapPosition);
+		AttackableTiles.Add(Tile);
 		// add a new instanced static mesh component to the movable tiles mesh
 		FTransform NewTileTransform;
-		NewTileTransform.SetLocation(FVector(MapPosition) * TileSpacing);
+		NewTileTransform.SetLocation(FVector(Tile.MapPosition) * TileSpacing);
 		AttackableTilesMesh->AddInstance(NewTileTransform);
 	}
 }
@@ -338,9 +336,9 @@ int32 ATileMap::DistanceBetween(const FIntVector MapPosition1, const FIntVector 
 	return ManhattanDistance;
 }
 
-TSet<FIntVector> ATileMap::GetAdjacentTiles(const FIntVector MapPosition)
+TSet<FTile> ATileMap::GetAdjacentTiles(const FIntVector MapPosition) const
 {
-	TSet<FIntVector> AdjacentTiles;
+	TSet<FTile> AdjacentTiles;
 	// iterate through the tiles at positions around the map position
 	for (int32 i = -1; i <= 1; i++)
 	{
@@ -350,9 +348,56 @@ TSet<FIntVector> ATileMap::GetAdjacentTiles(const FIntVector MapPosition)
 			// exclude i==j==0 as that is just the starting map position 
 			if ( !(i == 0 && j == 0) && Tiles.Contains( MapPosition + FIntVector(i,j,0) ) )
 			{
-				AdjacentTiles.Add(MapPosition + FIntVector(i, j, 0));
+				AdjacentTiles.Add(*Tiles.Find(MapPosition + FIntVector(i, j, 0)));
 			}
 		}
 	}
 	return AdjacentTiles;
+}
+
+TSet<FTile> ATileMap::GetTilesInRange(const FIntVector SourcePosition, int32 MinimumDistance, int32 MaximumDistance) const
+{
+	TSet<FTile> TilesInRange;
+	// iterate through the tile positions in a square of side 2 * max distance centred on the source position
+	for (int32 i = -MaximumDistance; i <= MaximumDistance; i++)
+	{
+		for (int32 j = -MaximumDistance; j <= MaximumDistance; j++)
+		{
+			int32 ManhattanDistance = FMath::Abs(i) + FMath::Abs(j);
+			// check whether the distance is within the desired range
+			if (ManhattanDistance >= MinimumDistance && ManhattanDistance <= MaximumDistance)
+			{
+			// check if the map position is in the Tiles TMap and add a pointer to the corresponding tile to the TilesInRange set if it is
+				if (Tiles.Contains(SourcePosition + FIntVector(i, j, 0)))
+				{
+					TilesInRange.Add(*Tiles.Find(SourcePosition + FIntVector(i, j, 0)));
+				}
+			}
+			
+		}
+	}
+	return TilesInRange;
+}
+
+FIntVector ATileMap::GetUnitPosition(AUnit* Unit) const
+{
+	const FIntVector* UnitPosition = UnitPositions.FindKey(Unit);
+	if (UnitPosition)
+	{
+		return *UnitPosition;
+	}
+	return FIntVector(0, 0, 0);
+}
+
+TSet<AUnit*> ATileMap::GetUnitsOnTiles(TSet<FTile> Tiles)
+{
+	TSet<AUnit*> UnitsFound;
+	for (auto Tile : Tiles)
+	{
+		if (UnitPositions.Contains(Tile.MapPosition))
+		{
+			UnitsFound.Add(*UnitPositions.Find(Tile.MapPosition));
+		}
+	}
+	return UnitsFound;
 }

@@ -125,8 +125,6 @@ public:
 
 	int32 DamageModifier();
 
-	bool IsVisible();
-
 	bool IsTargetable();
 	
 };

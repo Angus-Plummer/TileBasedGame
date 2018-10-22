@@ -205,15 +205,6 @@ int32 AUnit::DamageModifier()
 	return BuffModifier;
 }
 
-bool AUnit::IsVisible()
-{
-	bool Visibility = true;
-
-	// check if any buffs make the unit invisible
-
-	return Visibility;
-}
-
 bool AUnit::IsTargetable()
 {
 	bool Targetable = true;

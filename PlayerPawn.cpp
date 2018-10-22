@@ -88,7 +88,7 @@ void APlayerPawn::TraceForBlock(const FVector& Start, const FVector& End, bool b
 		FIntVector HitTilePosition = Map->WorldToMapCoordinates(HitResult.ImpactPoint);
 		if (Map->Tiles.Contains(HitTilePosition))
 		{
-			Map->SelectFocusTile(HitTilePosition);
+			Map->SelectFocusTile(*Map->Tiles.Find(HitTilePosition));
 		}
 		else
 		{
