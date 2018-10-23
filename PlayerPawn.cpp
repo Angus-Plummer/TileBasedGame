@@ -14,6 +14,7 @@
 APlayerPawn::APlayerPawn(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	StartTilePosition = FIntVector(0,0,0);
 	AutoPossessPlayer = EAutoReceiveInput::Player0;
 }
 
@@ -50,7 +51,7 @@ void APlayerPawn::SetupPlayerInputComponent(UInputComponent* PlayerInputComponen
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
 
-	PlayerInputComponent->BindAction("OnResetVR", EInputEvent::IE_Pressed, this, &APlayerPawn::OnResetVR);
+	//PlayerInputComponent->BindAction("OnResetVR", EInputEvent::IE_Pressed, this, &APlayerPawn::OnResetVR);
 	PlayerInputComponent->BindAction("TriggerClick", EInputEvent::IE_Pressed, this, &APlayerPawn::TriggerClick);
 }
 
@@ -68,10 +69,7 @@ void APlayerPawn::OnResetVR()
 
 void APlayerPawn::TriggerClick()
 {
-	if (Map->FocusedTileMesh->IsActive())
-	{
-		//Map->HandleClick();
-	}
+	StartTilePosition = Map->FocusedTile.MapPosition;
 }
 
 void APlayerPawn::TraceForBlock(const FVector& Start, const FVector& End, bool bDrawDebugHelpers)
@@ -86,9 +84,21 @@ void APlayerPawn::TraceForBlock(const FVector& Start, const FVector& End, bool b
 	if (HitResult.Actor.IsValid())
 	{
 		FIntVector HitTilePosition = Map->WorldToMapCoordinates(HitResult.ImpactPoint);
+		Map->ClearHighlightedTiles();
 		if (Map->Tiles.Contains(HitTilePosition))
 		{
 			Map->SelectFocusTile(*Map->Tiles.Find(HitTilePosition));
+
+			TArray<FIntVector> Path = Map->GetShortestPath(StartTilePosition, HitTilePosition, 0);
+
+			for (auto Pos : Path)
+			{
+				FTile* PotentialTile = Map->Tiles.Find(Pos);
+				if (PotentialTile)
+				{
+					Map->AddMoveableTile(*PotentialTile);
+				}
+			}
 		}
 		else
 		{

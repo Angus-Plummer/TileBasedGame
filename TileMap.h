@@ -9,6 +9,9 @@
 #include "Unit.h"
 #include "TileMap.generated.h"
 
+// ---------- Tile Struct ---------- //
+// struct for storing tile position and tile type. The data of the TileMap is composed of these structs
+
 USTRUCT()
 struct FTile
 {
@@ -33,11 +36,13 @@ inline bool operator==(const FTile& lhs, const FTile& rhs)
 	return lhs.MapPosition == rhs.MapPosition;
 }
 
-// type has generator for tiles just uses the position as these are unique
+// type hash generator for tiles just uses the position as these are unique
 inline int32 GetTypeHash(const FTile& Tile)
 {
 	return GetTypeHash(Tile.MapPosition);
 }
+
+// ---------- TileMap ---------- //
 
 // Class used to manage tiles
 UCLASS()
@@ -58,7 +63,7 @@ public:
 
 	// Max values of map coordinates in x,y,z directions
 	UPROPERTY(Category = Grid, EditAnywhere, BlueprintReadOnly)
-	FIntVector MapBounds;
+	FIntVector MapSize;
 
 	// Spacing of tiles
 	UPROPERTY(Category = Grid, EditAnywhere, BlueprintReadOnly)
@@ -176,17 +181,26 @@ public:
 	// get the manhattan distance between two map positions
 	int32 DistanceBetween(const FIntVector MapPosition1, const FIntVector MapPosition2) const;
 
-	// get all of the valid map positions that are adjacent to the input position (INCLUDES DIAGONAL TILES)
-	TSet<FTile> GetAdjacentTiles(const FIntVector MapPosition) const;
+	// get all of the valid map positions that are adjacent to the input position including diagonal tiles
+	TSet<FTile> GetSurroundingTiles(const FIntVector MapPosition) const;
 
 	// returns a set containing the positions of tiles that are equal to or greater than the minimum distance and less than or equal to the maximum distance away from the source position 
 	TSet<FTile> GetTilesInRange(const FIntVector SourcePosition, int32 MinimumDistance, int32 MaximumDistance) const;
+
+	// adds a unit to the map at the given coordinates
+	void AddUnit(AUnit* NewUnit, FIntVector MapPosition);
 
 	// returns the map position of a unit
 	FIntVector GetUnitPosition(AUnit* Unit) const;
 
 	// returns a set of all units that are present on the set of tiles given
 	TSet<AUnit*> GetUnitsOnTiles(TSet<FTile> Tiles);
+
+	// return a set of tiles which can be reached by the input unit
+	TSet<FTile> ReachableTiles(AUnit* UnitMoving) const;
+
+	// return a sequence of coordinates that could be moved along to get from the starting coordinate to the target coordinate for a unit of particular team (units cannot move through enemy units but can move through allied ones)
+	TArray<FIntVector> GetShortestPath(FIntVector StartCoordinate, FIntVector TargetCoordinate, int32 Team) const;
 
 	/** Returns DummyRoot subobject **/
 	FORCEINLINE class USceneComponent* GetDummyRoot() const { return DummyRoot; }

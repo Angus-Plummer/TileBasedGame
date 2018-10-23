@@ -5,12 +5,13 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/Texture2D.h"
 #include "Engine/World.h"
+#include "MoveSequence.h"
 
 ATileMap::ATileMap() 
 	: bConstructed(false)
 {
 	// Set defaults
-	MapBounds = FIntVector(3, 3, 3);
+	MapSize = FIntVector(3, 3, 3);
 	TileSpacing = FVector(250.f, 250.f, 25.f);
 
 	// Create dummy root scene component
@@ -95,32 +96,6 @@ void ATileMap::BeginPlay()
 {
 	Super::BeginPlay();
 
-	for (int32 i = MapBounds.X / 3; i < MapBounds.X * 2 / 3; i++)
-	{
-		for (int32 j = MapBounds.Y / 3; j < MapBounds.Y * 2 / 3; j++)
-		{
-			FTile* PotentialTile = Tiles.Find(FIntVector(i, j, 0));
-			if (PotentialTile)
-			{
-				AddMoveableTile(*PotentialTile);
-			}
-
-		}
-	}
-	for (auto Tile : MoveableTiles)
-	{
-		TSet<FTile> NeighbouringTiles = GetTilesInRange(Tile.MapPosition, 1, 1);
-		for (auto TargetTile : NeighbouringTiles)
-		{
-			if (!MoveableTiles.Contains(TargetTile))
-			{
-				AddAttackableTile(*Tiles.Find(TargetTile.MapPosition));
-			}
-		}
-
-	}
-	
-	
 }
 
 // recreates the tiles whenever the properties of the tile map are changed in the editor
@@ -134,7 +109,7 @@ void ATileMap::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& Pr
 		// get name of changed property
 		FName PropertyName = Property->GetFName();
 		// if the changed property is any of these map member variables then recreate the map
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(ATileMap, MapBounds)
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(ATileMap, MapSize)
 			|| PropertyName == GET_MEMBER_NAME_CHECKED(ATileMap, TileSpacing))
 		{
 			CreateTiles();
@@ -188,7 +163,7 @@ void ATileMap::CreateTiles()
 		if (SourceImage)
 		{
 			// set the map bounds to be those of the source image
-			MapBounds = FIntVector(SourceImage->GetSizeX(), SourceImage->GetSizeY(), 1);
+			MapSize = FIntVector(SourceImage->GetSizeX(), SourceImage->GetSizeY(), 1);
 
 			// set up the source image settings so that it allows finding rgb pixel colours
 			SourceImage->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
@@ -251,7 +226,7 @@ FIntVector ATileMap::WorldToMapCoordinates(const FVector& WorldPosition) const
 	FVector MapPosition = LocalPosition / TileSpacing + FVector(0.5, 0.5, 0.5);
 
 	// if map is 2d (bound of map in z is 1) then set the map position in z to be 0 (project down z axis to find tile)
-	if (MapBounds.Z == 1) 
+	if (MapSize.Z == 1) 
 	{
 		MapPosition.Z = 0;
 	}
@@ -336,7 +311,7 @@ int32 ATileMap::DistanceBetween(const FIntVector MapPosition1, const FIntVector 
 	return ManhattanDistance;
 }
 
-TSet<FTile> ATileMap::GetAdjacentTiles(const FIntVector MapPosition) const
+TSet<FTile> ATileMap::GetSurroundingTiles(const FIntVector MapPosition) const
 {
 	TSet<FTile> AdjacentTiles;
 	// iterate through the tiles at positions around the map position
@@ -379,6 +354,14 @@ TSet<FTile> ATileMap::GetTilesInRange(const FIntVector SourcePosition, int32 Min
 	return TilesInRange;
 }
 
+void ATileMap::AddUnit(AUnit* NewUnit, FIntVector MapPosition)
+{
+	if (Tiles.Contains(MapPosition))
+	{
+		UnitPositions.Add(MapPosition, NewUnit);
+	}
+}
+
 FIntVector ATileMap::GetUnitPosition(AUnit* Unit) const
 {
 	const FIntVector* UnitPosition = UnitPositions.FindKey(Unit);
@@ -400,4 +383,110 @@ TSet<AUnit*> ATileMap::GetUnitsOnTiles(TSet<FTile> Tiles)
 		}
 	}
 	return UnitsFound;
+}
+
+TSet<FTile> ATileMap::ReachableTiles(AUnit* UnitMoving) const
+{
+
+}
+
+TArray<FIntVector> ATileMap::GetShortestPath(FIntVector StartCoordinate, FIntVector TargetCoordinate, int32 Team) const
+{
+	// doubly linked lists used for storing the move sequences as each element must maintain its memory address when elements are added as they are pointed to by other move sequences
+	TDoubleLinkedList<MoveSequence> OpenSet; // tiles that will potentially be analysed
+	TDoubleLinkedList<MoveSequence> ClosedSet; // tiles that have been analysed or are being analysed
+	
+	// create the starting and final move sequence elements. Start is the at the units position, the end is the target
+	MoveSequence StartTile(StartCoordinate, GetTypeData(Tiles.Find(StartCoordinate)->TileTypeID)->MoveCost);
+	MoveSequence EndTile(TargetCoordinate, GetTypeData(Tiles.Find(TargetCoordinate)->TileTypeID)->MoveCost);
+	
+	// add the initial tile to the open set
+	StartTile.Target(TargetCoordinate);
+	OpenSet.AddHead(StartTile);
+
+	// keep iterating over this loop until EndTile has a parent, at that point the end tile must have been reached!
+	while (!EndTile.GetSequenceParent()) {
+		
+		// find the tile in the open set with the lowest predicted score to the target
+		MoveSequence* ElemToAnalyse = &OpenSet.GetHead()->GetValue();
+		for (auto& Elem : OpenSet)
+		{
+			if (ElemToAnalyse == &StartTile)
+			{
+				ElemToAnalyse = &Elem;
+			}
+			else
+			{
+				if (Elem.Score() < ElemToAnalyse->Score())
+				{
+					ElemToAnalyse = &Elem;
+				}
+			}
+		}
+
+		// add a copy of the element that will be analysed to the closed set
+		ClosedSet.AddHead(*ElemToAnalyse);
+		// remove the element to analyse from the open set as it cannot be in both sets and update the pointer to the closed set copy
+		MoveSequence* ElemToAnalyseOpenSet = ElemToAnalyse;
+		ElemToAnalyse = &ClosedSet.FindNode(*ElemToAnalyse)->GetValue();
+		OpenSet.RemoveNode(*ElemToAnalyseOpenSet);
+		ElemToAnalyseOpenSet = nullptr;
+
+		// set to hold tiles adjacent to inspected tile
+		TSet<FTile> AdjacentTiles = GetTilesInRange(ElemToAnalyse->GetMapCoordinates(), 1, 1); // tiles distance of 1 map unit away
+		// go through the tiles in the set of adjacent tiles
+		for (auto Tile : AdjacentTiles) {
+			
+			// make a MoveSequence object from this adjacent tile and make its parent the currently inspected tile
+			MoveSequence AdjacentElement(Tile.MapPosition, GetTypeData(Tile.TileTypeID)->MoveCost);
+			AdjacentElement.SetSequenceParent(*ElemToAnalyse);
+			AdjacentElement.Target(EndTile.GetMapCoordinates());
+			
+			// check if this element is at the target position. if so update the end tile and we have found the shortest path
+			if (AdjacentElement.GetMapCoordinates() == EndTile.GetMapCoordinates()) {
+				EndTile = AdjacentElement;
+			}
+			
+			// check if the element is already in one of the sets (elements compared using their map coordinates)
+			MoveSequence* InOpenSet = &OpenSet.FindNode(AdjacentElement)->GetValue();
+			MoveSequence* InClosedSet = &ClosedSet.FindNode(AdjacentElement)->GetValue();
+			// if this tile is not already in the closed set then proceed (if it is in closed set then it has already been analysed and shortest path to it found)
+			if (!InClosedSet) {
+				if (!InOpenSet) { // if also not in open set
+					// if there is a unit on the tile..
+					if (UnitPositions.Contains(AdjacentElement.GetMapCoordinates())) {
+						// friendly unit -> can move through, non-friendly then cant
+							if (Team == ((*UnitPositions.Find(AdjacentElement.GetMapCoordinates()))->GetTeam())) {
+							OpenSet.AddHead(AdjacentElement);
+						}
+					}
+					// if no unit on the tile then just add to reachable tiles and to open set
+					else {
+						OpenSet.AddHead(AdjacentElement);
+					}
+				}
+				else { // (in open set already)
+					// if adjacent tile costs less to reach from parent as currently inspected element then update the parent of element already in set
+					if (AdjacentElement.Score() < InOpenSet->Score()) {
+						InOpenSet->SetSequenceParent(*ElemToAnalyse);
+					}
+				}
+			}
+		}
+	}
+	// we now have a move sequence which takes the unit from its current tile to the target tile.
+	// make list of coordinates that is the order of moves to reach the target using the MoveSequence corresponding to the fnial tile
+	TDoubleLinkedList<FIntVector> ShortestPathList;;
+	MoveSequence CurrentElement = EndTile;
+	while (CurrentElement.GetSequenceParent()) { // will keep adding until we reach then initial tile has not parent and is not added
+		ShortestPathList.AddHead(CurrentElement.GetMapCoordinates());
+		CurrentElement = *CurrentElement.GetSequenceParent();
+	}
+	// convert list to array
+	TArray<FIntVector> ShortestPathArray;
+	for (auto elem : ShortestPathList)
+	{
+		ShortestPathArray.Add(elem);
+	}
+	return ShortestPathArray;
 }

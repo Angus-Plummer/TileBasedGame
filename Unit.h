@@ -77,6 +77,8 @@ public:
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
+	int32 GetTeam() const;
+	
 	// ---------- Start and end of turn handlers ---------- //
 
 	// in these functions the unit is set up for the start of a turn ans shut down correctly at end of turn

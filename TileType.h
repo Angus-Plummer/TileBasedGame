@@ -9,6 +9,7 @@
 // forward declaration of material instance
 class UMaterialInstance;
 
+// struct for storing the data about the different tile types. The TileProperties data table lists all the types and their properties
 USTRUCT(BlueprintType)
 struct FTileType : public FTableRowBase
 {

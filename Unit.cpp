@@ -44,6 +44,11 @@ void AUnit::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 
 }
 
+int32 AUnit::GetTeam() const
+{
+	return Team;
+}
+
 void AUnit::OnTurnStart()
 {
 	// set up action flags as unused (these may be modified later in OnTurnStart() by buffs such as stun, root, silence, etc)

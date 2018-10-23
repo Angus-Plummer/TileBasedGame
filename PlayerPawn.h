@@ -14,6 +14,8 @@ class APlayerPawn : public APawn
 public:
 	UPROPERTY(EditAnywhere)
 	class ATileMap* Map;
+	UPROPERTY(VisibleAnywhere)
+	FIntVector StartTilePosition;
 
 	virtual void Tick(float DeltaSeconds) override;
 
